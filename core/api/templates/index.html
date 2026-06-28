@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Optimizer - Route Planner</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 400px;
+            background: white;
+            padding: 30px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #2980b9;
+        }
+        
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #3498db;
+            font-weight: 600;
+        }
+        
+        .results {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e0e0e0;
+        }
+        
+        .result-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .result-item h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .result-item p {
+            color: #555;
+            margin-bottom: 8px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .cost-summary {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        
+        .cost-total {
+            font-size: 28px;
+            font-weight: 700;
+            color: #27ae60;
+            text-align: center;
+        }
+        
+        .cost-label {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            margin-top: 5px;
+        }
+        
+        .fuel-stops-header {
+            color: #2c3e50;
+            font-weight: 600;
+            margin-top: 20px;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .fuel-stop {
+            background: white;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .fuel-stop-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .fuel-stop-name {
+            font-weight: 600;
+            color: #2c3e50;
+            flex: 1;
+        }
+        
+        .fuel-stop-number {
+            background: #3498db;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .fuel-stop-details {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .detail-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        
+        .detail-item {
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 3px;
+            border-left: 3px solid #3498db;
+        }
+        
+        .detail-label {
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .detail-value {
+            font-size: 13px;
+            color: #2c3e50;
+            font-weight: 500;
+            margin-top: 2px;
+        }
+        
+        .reason {
+            background: #d5f4e6;
+            padding: 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            color: #0d5f3f;
+            margin-top: 8px;
+            border-left: 3px solid #27ae60;
+        }
+        
+        .error {
+            background: #fee;
+            border: 1px solid #f99;
+            padding: 15px;
+            border-radius: 4px;
+            color: #c33;
+            margin-top: 15px;
+        }
+        
+        .success {
+            background: #efe;
+            border: 1px solid #9f9;
+            padding: 15px;
+            border-radius: 4px;
+            color: #333;
+            margin-top: 15px;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                max-height: 40vh;
+            }
+            
+            #map {
+                height: 60vh;
+            }
+            
+            .detail-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sidebar">
+        <h1>🚗 Fuel Optimizer</h1>
+        
+        <form id="routeForm">
+            <div class="form-group">
+                <label for="start">Start Location</label>
+                <input type="text" id="start" placeholder="e.g., Phoenix, AZ" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="end">End Location</label>
+                <input type="text" id="end" placeholder="e.g., Los Angeles, CA" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="vehicle">Vehicle</label>
+                <select id="vehicle" required>
+                    <option value="">Loading vehicles...</option>
+                </select>
+            </div>
+            
+            <button type="submit" id="submitBtn">🔍 Optimize Route</button>
+        </form>
+        
+        <div id="results"></div>
+    </div>
+    
+    <div class="map-container">
+        <div id="map"></div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Initialize map
+    const map = L.map('map').setView([39, -98], 4);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
+    
+    let routeLayer = null;
+    let markersLayer = L.featureGroup().addTo(map);
+    
+    // Helper function to dynamically locate the fuel stops array key safely
+    function getStopsArray(data) {
+        return data.fuel_stops || data.fuel_stops_optimized || data.stops || [];
+    }
+
+    // Helper function to extract stop details safely whether nested or flat
+    function parseStopData(stop) {
+        const fuelSource = stop.fuel_stop || stop.stop || stop;
+        return {
+            name: fuelSource.name || 'Fuel Stop',
+            city: fuelSource.city || '',
+            state: fuelSource.state || '',
+            latitude: fuelSource.latitude,
+            longitude: fuelSource.longitude,
+            price_per_gallon: typeof fuelSource.price_per_gallon === 'number' ? fuelSource.price_per_gallon : null,
+            distance_from_start: typeof stop.distance_from_start === 'number' ? stop.distance_from_start : 0,
+            fuel_cost_here: typeof stop.fuel_cost_here === 'number' ? stop.fuel_cost_here : 0,
+            selection_reason: stop.selection_reason || 'Selected optimally'
+        };
+    }
+    
+    // Load vehicles on page load
+    async function loadVehicles() {
+        try {
+            const response = await fetch('/api/vehicles/', {
+                headers: { 'Accept': 'application/json' }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const text = await response.text();
+            let data = JSON.parse(text);
+            
+            let vehicles = [];
+            if (Array.isArray(data)) {
+                vehicles = data;
+            } else if (data && typeof data === 'object') {
+                if (Array.isArray(data.results)) {
+                    vehicles = data.results;
+                } else if (data.id && data.name) {
+                    vehicles = [data];
+                }
+            }
+            
+            const select = document.getElementById('vehicle');
+            select.innerHTML = '<option value="">Select a vehicle...</option>';
+            
+            if (!vehicles || vehicles.length === 0) {
+                select.innerHTML += '<option disabled>No vehicles available</option>';
+                return;
+            }
+            
+            vehicles.forEach((vehicle) => {
+                const option = document.createElement('option');
+                option.value = vehicle.id;
+                const label = `${vehicle.name} (${vehicle.available_tank_range}mi, ${vehicle.mpg} MPG)`;
+                option.textContent = label;
+                select.appendChild(option);
+            });
+            
+        } catch (error) {
+            console.error('Error loading vehicles:', error);
+            const select = document.getElementById('vehicle');
+            select.innerHTML = '<option disabled>Error loading vehicles</option>';
+        }
+    }
+    
+    // Optimize route
+    document.getElementById('routeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const start = document.getElementById('start').value;
+        const end = document.getElementById('end').value;
+        const vehicleId = document.getElementById('vehicle').value;
+        
+        if (!vehicleId) {
+            alert('Please select a vehicle');
+            return;
+        }
+        
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.textContent = '⏳ Optimizing...';
+        
+        const resultsDiv = document.getElementById('results');
+        resultsDiv.innerHTML = '<div class="loading">Calculating optimal route...</div>';
+        
+        try {
+            const csrftoken = getCookie('csrftoken');
+            
+            const response = await fetch('/api/optimize-route/', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({
+                    start_location: start,
+                    end_location: end,
+                    vehicle_id: parseInt(vehicleId)
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            displayRoute(data);
+            displayResults(data);
+            
+        } catch (error) {
+            console.error('Error:', error);
+            resultsDiv.innerHTML = `<div class="error">❌ ${error.message}</div>`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '🔍 Optimize Route';
+        }
+    });
+    
+    // Display route on map
+    function displayRoute(data) {
+        markersLayer.clearLayers();
+        if (routeLayer) {
+            map.removeLayer(routeLayer);
+        }
+        
+        const coordinates = data.route_coordinates;
+        routeLayer = L.polyline(coordinates, {
+            color: '#3498db',
+            weight: 4,
+            opacity: 0.8
+        }).addTo(map);
+        
+        // Start marker
+        L.marker([data.start_lat, data.start_lng], {
+            icon: L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+                iconSize: [25, 41],
+                popupAnchor: [1, -34]
+            })
+        }).bindPopup(`<b>Start: ${data.start_location}</b>`).addTo(markersLayer);
+        
+        // Fuel stop markers with fallback parser verification
+        const stops = getStopsArray(data);
+        stops.forEach((rawStop, i) => {
+            const stop = parseStopData(rawStop);
+            if (!stop.latitude || !stop.longitude) return;
+            
+            const priceLabel = stop.price_per_gallon ? `$${stop.price_per_gallon.toFixed(3)}/gal` : 'N/A';
+
+            L.marker([stop.latitude, stop.longitude], {
+                icon: L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+                    iconSize: [25, 41],
+                    popupAnchor: [1, -34]
+                })
+            }).bindPopup(`
+                <b>Stop ${i + 1}: ${stop.name}</b><br>
+                ${stop.city}, ${stop.state}<br>
+                Price: ${priceLabel}<br>
+                Cost: $${stop.fuel_cost_here.toFixed(2)}
+            `).addTo(markersLayer);
+        });
+        
+        // End marker
+        L.marker([data.end_lat, data.end_lng], {
+            icon: L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                iconSize: [25, 41],
+                popupAnchor: [1, -34]
+            })
+        }).bindPopup(`<b>End: ${data.end_location}</b>`).addTo(markersLayer);
+        
+        map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
+    }
+    
+    // Display results in sidebar
+    function displayResults(data) {
+        const resultsDiv = document.getElementById('results');
+        let html = `
+            <div class="results success">
+                <div class="result-item">
+                    <h3>📍 Route Information</h3>
+                    <p><strong>From:</strong> ${data.start_location}</p>
+                    <p><strong>To:</strong> ${data.end_location}</p>
+                    <p><strong>Distance:</strong> ${data.total_distance.toFixed(1)} miles</p>
+                    <p><strong>Vehicle:</strong> ${data.vehicle ? data.vehicle.name : 'Selected Vehicle'}</p>
+                </div>
+                
+                <div class="cost-summary">
+                    <div class="cost-total">$${data.total_fuel_cost.toFixed(2)}</div>
+                    <div class="cost-label">Total Estimated Fuel Cost</div>
+                    <div style="text-align: center; font-size: 12px; color: #666; margin-top: 8px;">
+                        ${data.cost_per_mile ? data.cost_per_mile : (data.total_fuel_cost / data.total_distance).toFixed(3)} $/mile
+                    </div>
+                </div>
+        `;
+        
+        const stops = getStopsArray(data);
+        if (stops.length > 0) {
+            html += '<div class="fuel-stops-header">⛽ Optimal Fuel Stops</div>';
+            
+            stops.forEach((rawStop, i) => {
+                const stop = parseStopData(rawStop);
+                html += `
+                    <div class="fuel-stop">
+                        <div class="fuel-stop-header">
+                            <div class="fuel-stop-name">${stop.name}</div>
+                            <div class="fuel-stop-number">${i + 1}</div>
+                        </div>
+                        
+                        <div class="fuel-stop-details">
+                            <p>${stop.city}${(stop.city && stop.state) ? ', ' : ''}${stop.state}</p>
+                            
+                            <div class="detail-row">
+                                <div class="detail-item">
+                                    <div class="detail-label">Distance From Start</div>
+                                    <div class="detail-value">${stop.distance_from_start.toFixed(1)} mi</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label">Fuel Cost</div>
+                                    <div class="detail-value" style="color: #27ae60; font-weight: 700;">$${stop.fuel_cost_here.toFixed(2)}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="reason">✓ ${stop.selection_reason}</div>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            html += '<p style="color: #27ae60; font-weight: 600;">✓ No stops needed - tank capacity sufficient for entire route!</p>';
+        }
+        
+        html += '</div>';
+        resultsDiv.innerHTML = html;
+    }
+    
+    loadVehicles();
+</script>
+
+</body>
+</html>
